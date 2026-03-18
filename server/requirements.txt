@@ -1,0 +1,8 @@
+aiortc==1.14.0
+aiohttp==3.13.3
+sounddevice
+av
+numpy
+pytest
+pytest-asyncio
+aiohttp[test]
