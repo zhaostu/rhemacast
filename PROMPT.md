@@ -521,7 +521,7 @@ aiohttp[test]
     - `cd mobile/rhemacast && flutter test` — all tests must pass
     - `cd mobile/rhemacast && flutter analyze` — zero errors
 
-- [ ] Task 13: iOS integration test checklist
+- [x] Task 13: iOS integration test checklist
   - Create `test/ios_test_checklist.md` with step-by-step manual test procedure:
     - Prerequisites: iOS device on same WiFi as server, Xcode installed, Apple Developer account
     - Steps:
