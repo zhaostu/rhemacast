@@ -324,7 +324,7 @@ aiohttp[test]
     - Use `aiohttp.test_utils.TestServer` + `aiohttp.test_utils.TestClient` to run the server in-process
   - **Run tests**: `cd server && python -m pytest tests/test_signaling.py -v` — must pass before committing
 
-- [ ] Task 5: Server entry point
+- [x] Task 5: Server entry point
   - Implement `server/server.py` fully (replacing stub):
     - `argparse` with `--device` (int, default None), `--host` (default '0.0.0.0'), `--port` (int, default 8080)
     - Import and wire together: `BroadcastManager`, `ws_handler` (from signaling), `index_handler`, `ws_ui_handler` (from web_ui)
@@ -343,7 +343,7 @@ aiohttp[test]
     - Test `app['broadcast_manager']` is a `BroadcastManager` instance
   - **Run tests**: `cd server && python -m pytest tests/test_server.py -v` — must pass before committing
 
-- [ ] Task 6: Debug web UI
+- [x] Task 6: Debug web UI
   - Implement `server/static/index.html` fully:
     - Standalone HTML page, no external dependencies (inline CSS/JS)
     - Connects to `ws://` + location.host + `/ws-ui`

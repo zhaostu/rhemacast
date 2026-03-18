@@ -31,8 +31,16 @@ async def ws_ui_handler(request: aiohttp.web.Request) -> aiohttp.web.WebSocketRe
                 "streaming": broadcast_manager.streaming,
                 "vu_db": broadcast_manager.get_vu_db(),
             }
-            await ws.send_json(stats)
-            await asyncio.sleep(1.0)
+            try:
+                await ws.send_json(stats)
+            except Exception:
+                break
+            try:
+                await asyncio.wait_for(ws.receive(), timeout=1.0)
+                # client sent a message or close frame — exit
+                break
+            except asyncio.TimeoutError:
+                pass  # no message yet, loop again
     except Exception:
         logger.debug("ws_ui_handler disconnected")
     finally:

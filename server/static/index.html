@@ -1,7 +1,113 @@
 <!DOCTYPE html>
-<html>
-<head><title>Rhemacast Debug</title></head>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rhemacast Debug</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #1a1a1a;
+      color: #e0e0e0;
+      font-family: 'Courier New', Courier, monospace;
+      padding: 2rem;
+    }
+    h1 { font-size: 1.6rem; margin-bottom: 1.5rem; color: #ffffff; letter-spacing: 0.05em; }
+    .stat { margin-bottom: 1rem; font-size: 1rem; }
+    .label { color: #888; margin-right: 0.5rem; }
+    .value { color: #4fc3f7; font-weight: bold; }
+    .value.yes { color: #81c784; }
+    .value.no  { color: #e57373; }
+    #ws-status { font-size: 0.8rem; color: #888; margin-top: 2rem; }
+    .vu-container {
+      margin-top: 0.5rem;
+      background: #333;
+      border-radius: 4px;
+      overflow: hidden;
+      height: 24px;
+      width: 400px;
+      max-width: 100%;
+    }
+    canvas { display: block; }
+  </style>
+</head>
 <body>
-<p>Rhemacast Debug UI - placeholder</p>
+  <h1>Rhemacast Debug</h1>
+
+  <div class="stat">
+    <span class="label">Connected peers:</span>
+    <span class="value" id="peer-count">—</span>
+  </div>
+
+  <div class="stat">
+    <span class="label">Streaming:</span>
+    <span class="value" id="streaming">—</span>
+  </div>
+
+  <div class="stat">
+    <span class="label">VU meter:</span>
+    <div class="vu-container">
+      <canvas id="vu-meter" width="400" height="24"></canvas>
+    </div>
+  </div>
+
+  <div id="ws-status">Connecting to ws-ui...</div>
+
+  <script>
+    const peerCountEl = document.getElementById('peer-count');
+    const streamingEl = document.getElementById('streaming');
+    const vuCanvas    = document.getElementById('vu-meter');
+    const vuCtx       = vuCanvas.getContext('2d');
+    const wsStatusEl  = document.getElementById('ws-status');
+
+    function drawVU(db) {
+      const minDb = -60;
+      const maxDb = 0;
+      const pct = Math.max(0, Math.min(1, (db - minDb) / (maxDb - minDb)));
+      const w = vuCanvas.width * pct;
+      vuCtx.clearRect(0, 0, vuCanvas.width, vuCanvas.height);
+      const gradient = vuCtx.createLinearGradient(0, 0, vuCanvas.width, 0);
+      gradient.addColorStop(0,   '#4caf50');
+      gradient.addColorStop(0.7, '#ffeb3b');
+      gradient.addColorStop(1.0, '#f44336');
+      vuCtx.fillStyle = gradient;
+      vuCtx.fillRect(0, 0, w, vuCanvas.height);
+    }
+
+    function connect() {
+      const url = 'ws://' + location.host + '/ws-ui';
+      wsStatusEl.textContent = 'Connecting...';
+      const ws = new WebSocket(url);
+
+      ws.onopen = () => {
+        wsStatusEl.textContent = 'Connected to ws-ui';
+      };
+
+      ws.onmessage = (evt) => {
+        let data;
+        try { data = JSON.parse(evt.data); } catch (e) { return; }
+
+        peerCountEl.textContent = data.peer_count;
+
+        const streaming = data.streaming;
+        streamingEl.textContent = streaming ? 'YES' : 'NO';
+        streamingEl.className = 'value ' + (streaming ? 'yes' : 'no');
+
+        drawVU(data.vu_db);
+      };
+
+      ws.onclose = () => {
+        wsStatusEl.textContent = 'Disconnected — reconnecting in 3s...';
+        setTimeout(connect, 3000);
+      };
+
+      ws.onerror = () => {
+        wsStatusEl.textContent = 'WebSocket error';
+        ws.close();
+      };
+    }
+
+    connect();
+  </script>
 </body>
 </html>
