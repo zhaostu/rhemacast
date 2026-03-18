@@ -448,7 +448,7 @@ aiohttp[test]
       - Widget test: render `HomeScreen`, assert "Rhemacast" title is visible
   - **Run tests**: `cd mobile/rhemacast && flutter test test/` — must pass before committing
 
-- [ ] Task 10: Flutter headphone detection
+- [x] Task 10: Flutter headphone detection
   - Implement `mobile/rhemacast/lib/audio_route.dart` fully:
     - Imports: `audio_session`, `dart:async`
     - Class `AudioRouteDetector extends ChangeNotifier`:
