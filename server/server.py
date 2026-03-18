@@ -3,7 +3,6 @@ import asyncio
 import logging
 
 import aiohttp.web
-import sounddevice
 
 from broadcast import BroadcastManager
 from signaling import ws_handler
@@ -31,10 +30,10 @@ def create_app(broadcast_manager=None) -> aiohttp.web.Application:
     app["broadcast_manager"] = broadcast_manager
 
     async def ws_handler_wrapper(request):
-        return await ws_handler(request, broadcast_manager)
+        return await ws_handler(request)
 
     async def ws_ui_handler_wrapper(request):
-        return await ws_ui_handler(request, broadcast_manager)
+        return await ws_ui_handler(request)
 
     app.router.add_get("/", index_handler)
     app.router.add_get("/ws", ws_handler_wrapper)
@@ -48,6 +47,7 @@ def create_app(broadcast_manager=None) -> aiohttp.web.Application:
 
 
 def setup_audio_capture(loop, broadcast_manager: BroadcastManager, device=None):
+    import sounddevice
     broadcast_queue: asyncio.Queue = asyncio.Queue(maxsize=100)
 
     def audio_callback(indata, frames, time, status):
