@@ -417,7 +417,7 @@ aiohttp[test]
     - Note: full integration tests (actual WebRTC) are deferred to Task 12/13; these are pure unit tests of logic
   - **Run tests**: `cd mobile/rhemacast && flutter test test/webrtc_client_test.dart` — must pass before committing
 
-- [ ] Task 9: Flutter home screen
+- [x] Task 9: Flutter home screen
   - Implement `mobile/rhemacast/lib/ui/status_widget.dart`:
     - `StatelessWidget` taking `connectionState` and optional `errorMessage`
     - Shows colored circle (green/yellow/red/grey) + label text

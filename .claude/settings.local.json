@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:pub.dev)",
+      "WebFetch(domain:aiortc.readthedocs.io)",
+      "WebFetch(domain:github.com)"
+    ]
+  }
+}

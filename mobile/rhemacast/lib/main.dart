@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'webrtc_client.dart';
+import 'audio_route.dart';
+import 'ui/home_screen.dart';
 
 void main() {
   runApp(const RhemacastApp());
@@ -9,10 +13,15 @@ class RhemacastApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Rhemacast',
-      home: Scaffold(
-        body: Center(child: Text('Rhemacast')),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => WebRTCClient()),
+        ChangeNotifierProvider(create: (_) => AudioRouteDetector()),
+      ],
+      child: MaterialApp(
+        title: 'Rhemacast',
+        theme: ThemeData.dark(),
+        home: const HomeScreen(),
       ),
     );
   }
