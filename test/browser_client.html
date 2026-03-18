@@ -1,7 +1,265 @@
 <!DOCTYPE html>
-<html>
-<head><title>Rhemacast Browser Client</title></head>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rhemacast Browser Client</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #1a1a2e;
+      color: #e0e0e0;
+      font-family: 'Courier New', monospace;
+      padding: 24px;
+      min-height: 100vh;
+    }
+    h1 { color: #4fc3f7; margin-bottom: 8px; font-size: 1.6rem; }
+    h2 { color: #81d4fa; margin: 16px 0 8px; font-size: 1rem; }
+    #status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #555;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    #status-indicator.connected { background: #66bb6a; }
+    #status-indicator.connecting { background: #ffa726; }
+    #status-indicator.failed { background: #ef5350; }
+    #status-text { vertical-align: middle; }
+    .controls { margin: 16px 0; display: flex; gap: 12px; }
+    button {
+      background: #0d47a1;
+      color: #fff;
+      border: none;
+      padding: 10px 22px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+    button:hover { background: #1565c0; }
+    button:disabled { background: #333; color: #777; cursor: default; }
+    #log {
+      background: #0d0d1a;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 12px;
+      height: 220px;
+      overflow-y: auto;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+    .log-entry { margin-bottom: 2px; }
+    .log-entry .ts { color: #555; }
+    .log-entry.info .msg { color: #81d4fa; }
+    .log-entry.ok .msg { color: #66bb6a; }
+    .log-entry.warn .msg { color: #ffa726; }
+    .log-entry.err .msg { color: #ef5350; }
+    #error-box {
+      background: #3e1010;
+      border: 1px solid #ef5350;
+      border-radius: 4px;
+      padding: 10px 14px;
+      margin-top: 12px;
+      display: none;
+      font-size: 0.88rem;
+      color: #ef9a9a;
+    }
+  </style>
+</head>
 <body>
-<p>Browser client - placeholder</p>
+  <h1>Rhemacast Browser Client</h1>
+  <p style="color:#90a4ae; margin-bottom:16px; font-size:0.9rem;">
+    Server: <code>ws://192.168.4.1:8080/ws</code>
+  </p>
+
+  <div id="status-row">
+    <span id="status-indicator"></span>
+    <span id="status-text">Ready to connect</span>
+  </div>
+
+  <div class="controls">
+    <button id="btn-connect">Connect</button>
+    <button id="btn-disconnect" disabled>Disconnect</button>
+  </div>
+
+  <div id="error-box"></div>
+
+  <h2>Event Log</h2>
+  <div id="log"></div>
+
+  <!-- Audio element for playback -->
+  <audio id="remote-audio" autoplay playsinline style="display:none"></audio>
+
+  <script>
+    const SERVER_WS_URL = 'ws://192.168.4.1:8080/ws';
+
+    let pc = null;
+    let ws = null;
+    const audioEl = document.getElementById('remote-audio');
+    const logEl = document.getElementById('log');
+    const indicator = document.getElementById('status-indicator');
+    const statusText = document.getElementById('status-text');
+    const btnConnect = document.getElementById('btn-connect');
+    const btnDisconnect = document.getElementById('btn-disconnect');
+    const errorBox = document.getElementById('error-box');
+
+    function log(msg, level = 'info') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${level}`;
+      const ts = new Date().toISOString().substring(11, 23);
+      entry.innerHTML = `<span class="ts">[${ts}]</span> <span class="msg">${msg}</span>`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function setStatus(text, cls) {
+      statusText.textContent = text;
+      indicator.className = cls || '';
+    }
+
+    function showError(msg) {
+      errorBox.style.display = 'block';
+      errorBox.textContent = 'Error: ' + msg;
+      log(msg, 'err');
+    }
+
+    function clearError() {
+      errorBox.style.display = 'none';
+      errorBox.textContent = '';
+    }
+
+    function updateStatus(state) {
+      log('Connection state: ' + state);
+      switch (state) {
+        case 'connected':
+          setStatus('Connected', 'connected');
+          break;
+        case 'connecting':
+        case 'new':
+          setStatus('Connecting…', 'connecting');
+          break;
+        case 'disconnected':
+        case 'failed':
+        case 'closed':
+          setStatus(state.charAt(0).toUpperCase() + state.slice(1), 'failed');
+          break;
+        default:
+          setStatus(state);
+      }
+    }
+
+    async function connect() {
+      clearError();
+      btnConnect.disabled = true;
+      btnDisconnect.disabled = false;
+      setStatus('Connecting…', 'connecting');
+      log('Opening WebSocket to ' + SERVER_WS_URL);
+
+      try {
+        ws = new WebSocket(SERVER_WS_URL);
+      } catch (e) {
+        showError('Failed to open WebSocket: ' + e.message);
+        reset();
+        return;
+      }
+
+      ws.onerror = (e) => {
+        showError('WebSocket error — is the server running at ' + SERVER_WS_URL + '?');
+        reset();
+      };
+
+      ws.onclose = () => {
+        log('WebSocket closed', 'warn');
+        if (pc && pc.connectionState !== 'closed') {
+          reset();
+        }
+      };
+
+      ws.onopen = async () => {
+        log('WebSocket open', 'ok');
+        try {
+          pc = new RTCPeerConnection({ iceServers: [] });
+
+          pc.addTransceiver('audio', { direction: 'recvonly' });
+
+          pc.ontrack = (e) => {
+            log('Remote audio track received', 'ok');
+            audioEl.srcObject = e.streams[0];
+          };
+
+          pc.onconnectionstatechange = () => {
+            updateStatus(pc.connectionState);
+          };
+
+          pc.onicecandidate = (e) => {
+            if (e.candidate) {
+              log('ICE candidate: ' + e.candidate.candidate.substring(0, 60) + '…');
+            }
+          };
+
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          log('Offer created, sending to server');
+
+          ws.send(JSON.stringify({ type: 'offer', sdp: offer.sdp }));
+
+          ws.onmessage = async (event) => {
+            let msg;
+            try {
+              msg = JSON.parse(event.data);
+            } catch (e) {
+              log('Invalid JSON from server: ' + event.data, 'err');
+              return;
+            }
+
+            if (msg.type === 'answer') {
+              log('Answer received, setting remote description', 'ok');
+              try {
+                await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: msg.sdp }));
+                log('Remote description set — ICE negotiation in progress');
+              } catch (e) {
+                showError('setRemoteDescription failed: ' + e.message);
+              }
+            } else {
+              log('Unknown message type: ' + msg.type, 'warn');
+            }
+          };
+
+        } catch (e) {
+          showError('WebRTC setup failed: ' + e.message);
+          reset();
+        }
+      };
+    }
+
+    function reset() {
+      if (pc) {
+        pc.close();
+        pc = null;
+      }
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+      audioEl.srcObject = null;
+      btnConnect.disabled = false;
+      btnDisconnect.disabled = true;
+      setStatus('Disconnected', 'failed');
+    }
+
+    function disconnect() {
+      log('Disconnecting…', 'warn');
+      reset();
+      setStatus('Disconnected');
+    }
+
+    btnConnect.addEventListener('click', connect);
+    btnDisconnect.addEventListener('click', disconnect);
+
+    log('Ready. Click Connect to start.', 'info');
+  </script>
 </body>
 </html>

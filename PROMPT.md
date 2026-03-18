@@ -473,7 +473,7 @@ aiohttp[test]
     - Note: full device-detection tests require a real device (deferred to Task 12/13)
   - **Run tests**: `cd mobile/rhemacast && flutter test test/` — must pass before committing
 
-- [ ] Task 11: Browser integration test
+- [x] Task 11: Browser integration test
   - Implement `test/browser_client.html` fully:
     - Standalone HTML page (no build tools, no npm)
     - Hardcoded server URL: `ws://192.168.4.1:8080/ws`
