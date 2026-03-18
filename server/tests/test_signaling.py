@@ -97,3 +97,19 @@ async def test_answer_response_format():
         assert len(msg["sdp"]) > 0
 
         await ws.close()
+
+
+@pytest.mark.asyncio
+async def test_peer_cleaned_up_on_exception():
+    """Peer should be removed from broadcast_manager even if WS closed prematurely (before offer)."""
+    bm = BroadcastManager()
+    app = make_app(bm)
+
+    async with TestClient(TestServer(app)) as client:
+        ws = await client.ws_connect("/ws")
+        # Close without sending an offer — causes handler to hit an exception on receive_str()
+        await ws.close()
+        # Give handler time to run finally cleanup
+        await asyncio.sleep(0.3)
+
+        assert len(bm._peers) == 0

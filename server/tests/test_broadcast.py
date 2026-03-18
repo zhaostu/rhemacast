@@ -1,6 +1,7 @@
 import asyncio
 import math
 import struct
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -125,3 +126,22 @@ async def test_get_vu_db_max_amplitude():
     # Should be very close to 0 dBFS
     assert db > -1.0, f"Expected near 0 dBFS, got {db}"
     assert db <= 0.1, f"Expected near 0 dBFS, got {db}"
+
+
+# ---------- warning logging ----------
+
+@pytest.mark.asyncio
+async def test_distribute_full_queue_logs_warning():
+    """When a peer's queue is full, distribute should log a warning."""
+    bm = BroadcastManager()
+    q = asyncio.Queue(maxsize=1)
+    bm.add_peer("slow", q)
+
+    data1 = make_audio_bytes(1)
+    data2 = make_audio_bytes(2)
+
+    await bm.distribute(data1)  # fills the queue
+
+    with patch("broadcast.logger") as mock_logger:
+        await bm.distribute(data2)  # queue full — should trigger warning
+        mock_logger.warning.assert_called()
