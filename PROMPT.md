@@ -500,7 +500,7 @@ aiohttp[test]
     - Test body contains `192.168.4.1:8080/ws` (hardcoded server URL)
   - **Run tests**: `cd server && python -m pytest tests/test_browser_client.py -v` — must pass before committing
 
-- [ ] Task 12: Android integration test checklist
+- [x] Task 12: Android integration test checklist
   - Create `test/android_test_checklist.md` with step-by-step manual test procedure:
     - Prerequisites: Android device on same WiFi as server (192.168.4.1), headphones connected
     - Steps:
