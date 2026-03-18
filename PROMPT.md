@@ -566,7 +566,7 @@ aiohttp[test]
     - Run the full test suite: `cd server && python -m pytest tests/ -v` — all tests must pass
     - Run `cd mobile/rhemacast && flutter test` — all tests must pass
 
-- [ ] Task 15: App Store preparation
+- [x] Task 15: App Store preparation
   - Update `mobile/rhemacast/pubspec.yaml`:
     - Set `version: 1.0.0+1`
     - Verify `description: "Real-time voice broadcasting for on-site translation"`
