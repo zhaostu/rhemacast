@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Rhemacast uses the microphone for audio translation</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Rhemacast uses Bluetooth for wireless headphones</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Rhemacast uses Bluetooth for wireless headphones</string>
 </dict>
 </plist>

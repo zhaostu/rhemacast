@@ -363,7 +363,7 @@ aiohttp[test]
     - Test `ws_ui_handler`: `peer_count` is an int, `streaming` is a bool, `vu_db` is a float
   - **Run tests**: `cd server && python -m pytest tests/test_web_ui.py -v` — must pass before committing
 
-- [ ] Task 7: Flutter setup
+- [x] Task 7: Flutter setup
   - Edit `mobile/rhemacast/pubspec.yaml`:
     - Add dependencies: `flutter_webrtc: ^0.9.0`, `web_socket_channel: ^2.4.0`, `audio_session: ^0.1.21`, `provider: ^6.1.0`
     - Ensure `flutter: sdk: flutter` is present
