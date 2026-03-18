@@ -385,7 +385,7 @@ aiohttp[test]
     - Run: `cd server && python -m pytest tests/test_flutter_setup.py -v`
   - **Run all tests**: `cd server && python -m pytest tests/ -v` — must pass before committing
 
-- [ ] Task 8: Flutter WebRTC client
+- [x] Task 8: Flutter WebRTC client
   - Implement `mobile/rhemacast/lib/webrtc_client.dart` fully:
     - Imports: `flutter_webrtc`, `web_socket_channel`, `provider` (ChangeNotifier), `dart:convert`, `dart:async`
     - `enum ClientConnectionState { idle, connecting, connected, reconnecting, error }` (avoid clash with Flutter's `ConnectionState`)
