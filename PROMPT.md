@@ -540,7 +540,7 @@ aiohttp[test]
     - `cd mobile/rhemacast && flutter test` — all tests must pass
     - `cd mobile/rhemacast && flutter analyze` — zero errors
 
-- [ ] Task 14: Load testing and hardening
+- [x] Task 14: Load testing and hardening
   - Create `server/test_load.py`:
     - Asyncio script that simulates N concurrent WebRTC clients
     - Uses `aiortc` to create client-side RTCPeerConnections
