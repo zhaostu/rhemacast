@@ -268,7 +268,7 @@ aiohttp[test]
     - Test `recv()` blocks until data is available (put data after a short delay using asyncio.create_task)
   - **Run tests**: `cd server && python -m pytest tests/test_audio_track.py -v` — must pass before committing
 
-- [ ] Task 3: BroadcastManager + sounddevice capture
+- [x] Task 3: BroadcastManager + sounddevice capture
   - Implement `server/broadcast.py` fully:
     - Class `BroadcastManager`:
       - `__init__`: `self._peers = {}` (dict[str, asyncio.Queue]), `self._recent_frames = collections.deque(maxlen=50)`, `self.streaming = False`
@@ -295,7 +295,7 @@ aiohttp[test]
     - Test `get_vu_db` with no frames yet (empty deque): returns -96.0
   - **Run tests**: `cd server && python -m pytest tests/test_broadcast.py -v` — must pass before committing
 
-- [ ] Task 4: WebSocket signaling
+- [x] Task 4: WebSocket signaling
   - Implement `server/signaling.py` fully:
     - Imports: `asyncio`, `json`, `uuid`, `logging`, `aiohttp.web`, `aiortc` (RTCPeerConnection, RTCSessionDescription)
     - Import `BroadcastManager` from `broadcast`, `MicrophoneAudioTrack` from `audio_track`
