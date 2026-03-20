@@ -13,6 +13,8 @@ class BroadcastManager:
         self._peers: dict[str, asyncio.Queue] = {}
         self._recent_frames: collections.deque = collections.deque(maxlen=50)
         self.streaming: bool = False
+        self.volume_gain: float = 1.0
+        self.muted: bool = False
 
     def add_peer(self, peer_id: str, queue: asyncio.Queue) -> None:
         self._peers[peer_id] = queue
@@ -21,16 +23,27 @@ class BroadcastManager:
         self._peers.pop(peer_id, None)
 
     async def distribute(self, data: bytes) -> None:
+        self._recent_frames.append(data)
+
+        if data:
+            self.streaming = True
+
+        if self.muted:
+            return
+
+        if self.volume_gain != 1.0:
+            data = self._apply_gain(data, self.volume_gain)
+
         for peer_id, queue in list(self._peers.items()):
             try:
                 queue.put_nowait(data)
             except asyncio.QueueFull:
                 logger.warning("Queue full for peer %s — frame dropped", peer_id)
 
-        self._recent_frames.append(data)
-
-        if data:
-            self.streaming = True
+    def _apply_gain(self, data: bytes, gain: float) -> bytes:
+        samples = np.frombuffer(data, dtype=np.int16).astype(np.float32)
+        np.clip(samples * gain, -32768, 32767, out=samples)
+        return samples.astype(np.int16).tobytes()
 
     def get_vu_db(self) -> float:
         if not self._recent_frames:

@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import uuid
+from datetime import datetime
 
 import aiohttp.web
 from aiortc import RTCConfiguration, RTCPeerConnection, RTCSessionDescription
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 async def ws_handler(request: aiohttp.web.Request) -> aiohttp.web.WebSocketResponse:
     broadcast_manager: BroadcastManager = request.app["broadcast_manager"]
+    registry: dict | None = request.app.get("client_registry")
 
     ws = aiohttp.web.WebSocketResponse()
     await ws.prepare(request)
@@ -21,8 +23,17 @@ async def ws_handler(request: aiohttp.web.Request) -> aiohttp.web.WebSocketRespo
     peer_id = str(uuid.uuid4())
     peer_queue: asyncio.Queue = asyncio.Queue(maxsize=10)
     pc = RTCPeerConnection(configuration=RTCConfiguration(iceServers=[]))
+    ip_address = request.remote or "unknown"
 
     broadcast_manager.add_peer(peer_id, peer_queue)
+    if registry is not None:
+        registry[peer_id] = {
+            "peer_id": peer_id,
+            "ip_address": ip_address,
+            "connected_at": datetime.utcnow().isoformat() + "Z",
+            "ws": ws,
+            "pc": pc,
+        }
     logger.info("Peer connected: %s", peer_id)
 
     try:
@@ -60,6 +71,8 @@ async def ws_handler(request: aiohttp.web.Request) -> aiohttp.web.WebSocketRespo
         logger.exception("Error in ws_handler for peer %s", peer_id)
     finally:
         broadcast_manager.remove_peer(peer_id)
+        if registry is not None:
+            registry.pop(peer_id, None)
         await pc.close()
         logger.info("Peer disconnected: %s", peer_id)
 
