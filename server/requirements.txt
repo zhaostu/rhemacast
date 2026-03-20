@@ -3,6 +3,7 @@ aiohttp==3.13.3
 sounddevice
 av
 numpy
+speexdsp
 pytest
 pytest-asyncio
 aiohttp[test]
