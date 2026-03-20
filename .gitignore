@@ -1,3 +1,15 @@
 
 # FVM Version Cache
 .fvm/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Claude
+.claude/settings.local.json
