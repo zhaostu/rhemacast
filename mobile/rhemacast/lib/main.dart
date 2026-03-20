@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'webrtc_client.dart';
 import 'audio_route.dart';
+import 'admin_client.dart';
 import 'ui/home_screen.dart';
 
 void main() {
@@ -17,6 +18,7 @@ class RhemacastApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => WebRTCClient()),
         ChangeNotifierProvider(create: (_) => AudioRouteDetector()),
+        ChangeNotifierProvider(create: (_) => AdminClient()),
       ],
       child: MaterialApp(
         title: 'Rhemacast',

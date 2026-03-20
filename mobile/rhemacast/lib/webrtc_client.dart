@@ -5,10 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import 'constants.dart';
+
 enum ClientConnectionState { idle, connecting, connected, reconnecting, error }
 
 class WebRTCClient extends ChangeNotifier {
-  static const String _serverWsUrl = 'ws://192.168.4.1:8080/ws';
+  static const String _serverWsUrl = AppConfig.wsUrl;
 
   RTCPeerConnection? _pc;
   WebSocketChannel? _ws;
