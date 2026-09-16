@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RhemaCast Listen (WHEP Test)</title>
+<style>
+  body{font-family:system-ui,sans-serif;margin:0;padding:16px;background:#111;color:#eee;max-width:640px;margin-inline:auto}
+  h1{font-size:1.2rem;margin:0 0 12px}
+  .row{display:flex;gap:8px;margin:8px 0;flex-wrap:wrap;align-items:center}
+  input[type=text]{flex:1;min-width:140px;padding:8px;border-radius:8px;border:1px solid #444;background:#222;color:#eee}
+  button{padding:10px 18px;border:0;border-radius:8px;font-weight:700;cursor:pointer}
+  #play{background:#2e7d32;color:#fff} #stop{background:#b71c1c;color:#fff}
+  button:disabled{opacity:.4;cursor:default}
+  audio{width:100%;margin:8px 0}
+  #status{padding:8px;border-radius:8px;background:#222;min-height:1.4em;font-size:.9rem}
+  #status.ok{background:#1b3a24} #status.err{background:#431418}
+  #stats{font-size:.8rem;color:#aaa;font-variant-numeric:tabular-nums;min-height:1.2em}
+  details{margin-top:8px;font-size:.8rem} pre{white-space:pre-wrap;word-break:break-all;background:#222;padding:8px;border-radius:8px;max-height:220px;overflow:auto}
+  label{font-size:.9rem;color:#ccc}
+</style>
+</head>
+<body>
+<h1>RhemaCast &mdash; WHEP Listen (offline test)</h1>
+<div class="row">
+  <label for="ip">Server IP</label>
+  <input id="ip" type="text" inputmode="numeric" autocomplete="off" spellcheck="false">
+</div>
+<div class="row">
+  <button id="play">Play</button>
+  <button id="stop" disabled>Stop</button>
+  <label>Vol <input id="vol" type="range" min="0" max="1" step="0.01" value="1"></label>
+</div>
+<audio id="audio" autoplay controls playsinline></audio>
+<div id="status">Idle. Join the hotspot, then press Play.</div>
+<div id="stats"></div>
+<details><summary>SDP exchange (tap for phone debugging)</summary>
+<pre id="offer">offer: —</pre>
+<pre id="answer">answer: —</pre>
+</details>
+<script>
+(function(){
+"use strict";
+var $=function(id){return document.getElementById(id);};
+var ipEl=$("ip"),playBtn=$("play"),stopBtn=$("stop"),
+    audio=$("audio"),statusEl=$("status"),statsEl=$("stats"),
+    offerEl=$("offer"),answerEl=$("answer"),vol=$("vol");
+var pc=null,statsTimer=null;
+// Auto-fill IP from host, fallback for file:// or empty hostname.
+ipEl.value=(location.hostname&&location.hostname!=="")?location.hostname:"192.168.4.1";
+vol.addEventListener("input",function(){audio.volume=parseFloat(vol.value);});
+function setStatus(msg,cls){statusEl.textContent=msg;statusEl.className=cls||"";}
+function whepUrl(){
+  var ip=ipEl.value.trim()||"192.168.4.1";
+  return "http://"+ip+":8080/whep";
+}
+function errMsg(e){
+  var s=String((e&&e.message)||e||"unknown error");
+  if(/Failed to fetch|NetworkError|Load failed/i.test(s))
+    return "Cannot reach server. Check Wi-Fi/hotspot, server IP, and that rhemacastd :8080 is up.";
+  return s;
+}
+async function play(){
+  stop(true);
+  setStatus("Connecting…");playBtn.disabled=true;
+  try{
+    pc=new RTCPeerConnection({});
+    pc.addTransceiver("audio",{direction:"recvonly"});
+    pc.ontrack=function(ev){audio.srcObject=ev.streams[0]||new MediaStream(ev.track?[ev.track]:[]);};
+    var offer=await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    offerEl.textContent="offer:\n"+pc.localDescription.sdp;
+    var url=whepUrl();
+    var res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/sdp"},body:pc.localDescription.sdp});
+    if(!res.ok)throw new Error("WHEP POST failed: HTTP "+res.status+" — is rhemacastd running?");
+    var ansSdp=await res.text();
+    if(!ansSdp||ansSdp.indexOf("v=0")!==0)throw new Error("Bad WHEP answer (not SDP). Is :8080 serving WHEP?");
+    answerEl.textContent="answer:\n"+ansSdp;
+    await pc.setRemoteDescription({type:"answer",sdp:ansSdp});
+    setStatus("Playing from "+url,"ok");
+    stopBtn.disabled=false;
+    statsTimer=setInterval(pollStats,2000);
+    pollStats();
+  }catch(e){setStatus("Error: "+errMsg(e),"err");stop(true);playBtn.disabled=false;}
+}
+function stop(silent){
+  if(statsTimer){clearInterval(statsTimer);statsTimer=null;}
+  if(pc){try{pc.close();}catch(e){}pc=null;}
+  if(!silent){audio.removeAttribute("src");audio.load();setStatus("Stopped.");statsEl.textContent="";}
+  playBtn.disabled=false;stopBtn.disabled=true;
+}
+async function pollStats(){
+  if(!pc)return;
+  try{
+    var st=await pc.getStats(),rtt="-",jit="-",bytes="-";
+    st.forEach(function(r){
+      if(r.type==="inbound-rtp"&&(r.kind==="audio"||r.mediaType==="audio")){
+        if(r.jitter!=null)jit=(r.jitter*1000).toFixed(1)+" ms";
+        if(r.bytesReceived!=null)bytes=(r.bytesReceived/1024).toFixed(1)+" KB";
+      }
+      if(r.type==="candidate-pair"&&(r.nominated||r.selected)){
+        if(r.currentRoundTripTime!=null)rtt=(r.currentRoundTripTime*1000).toFixed(0)+" ms";
+      }
+    });
+    var cs=pc.connectionState?(" pc="+pc.connectionState):"";
+    statsEl.textContent="RTT "+rtt+" · jitter "+jit+" · received "+bytes+cs;
+  }catch(e){/* keep old stats */}
+}
+playBtn.addEventListener("click",play);
+stopBtn.addEventListener("click",function(){stop(false);});
+})();
+</script>
+</body>
+</html>

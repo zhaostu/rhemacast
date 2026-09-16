@@ -1,0 +1,29 @@
+# Rust
+target/
+.sysroot-aarch64/
+.dl/
+
+# Android / Gradle
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+captures/
+*.apk
+*.aab
+*.keystore
+gradle-daemon-jvm.properties
+
+# Xcode / iOS — keep project.pbxproj + shared workspace, ignore user-specific state
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.moved-aside
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+DerivedData/
+.swiftpm/
+.fastlane/
