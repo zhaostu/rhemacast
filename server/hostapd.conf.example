@@ -1,0 +1,15 @@
+# rhemacast AP example — 2.4GHz default for max phone compatibility.
+# 5GHz works on Pi 3B+/4/5 (change channel + hw_mode=a) but halves range
+# through walls; keep 2.4GHz for outdoors/crowds.
+interface=wlan0
+ssid=rhemacast
+hw_mode=g            # 2.4GHz; for 5GHz use: hw_mode=a, channel=36 (check reg domain!)
+channel=6
+country_code=US      # <-- SET your ISO code (DE/GB/...); required for 5GHz + tx power
+auth_algs=1
+wmm_enabled=1
+# Open network (offline translation use; add wpa_passphrase=... for private events):
+# wpa=2
+# wpa_passphrase=changeme-long-enough
+# wpa_key_mgmt=WPA-PSK
+# rsn_pairwise=CCMP

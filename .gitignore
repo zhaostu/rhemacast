@@ -1,0 +1,16 @@
+# Rust
+target/
+.sysroot-aarch64/
+.dl/
+
+# Android / Gradle
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+captures/
+*.apk
+*.aab
+*.keystore
+gradle-daemon-jvm.properties

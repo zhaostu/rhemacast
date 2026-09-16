@@ -1,0 +1,24 @@
+# rhemacastd.service — single-binary translator broadcast (replaces the old
+# mediamtx + rhemacast-publish + rhemacast-admin trio).
+# Install: copy a natively-built binary (see README) to /usr/local/bin/rhemacastd, then:
+#   sudo install -m644 rhemacastd.service /etc/systemd/system/
+#   sudo systemctl enable --now rhemacastd
+[Unit]
+Description=rhemacast translator broadcast (mic -> Opus -> WebRTC :8080)
+Wants=network.target sound.target
+After=network.target sound.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/rhemacastd
+# Env overrides (all optional):
+#   ADMIN_TOKEN=secret        Bearer auth for /api/* (unset = LAN-open)
+#   RUST_LOG not used; logs go to stderr (journald)
+EnvironmentFile=-/etc/rhemacastd.env
+Restart=always
+RestartSec=3
+# mic access for the service user: ALSA device nodes are usually group
+# 'audio' (usermod -aG audio <user>), or run as root on a single-purpose Pi.
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,4 @@
+# No Docker: plain cargo cross build via system cross-gcc (Arch: pacman -S aarch64-linux-gnu-gcc).
+# C deps (ALSA, Opus) come from an ARM64 sysroot assembled by mk-sysroot.sh.
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
