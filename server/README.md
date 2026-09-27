@@ -46,14 +46,13 @@ Result: `server/target/aarch64-unknown-linux-gnu/release/rhemacastd`
 (~14MB, needs `libasound2` + `libopus0` on the board — both preinstalled on
 Raspberry Pi OS/Armbian; if minimal: `sudo apt install -y libasound2 libopus0`).
 
-Deploy:
+Deploy (one driver script — build, stage to /tmp, print the on-Pi steps):
 
 ```sh
-scp server/target/aarch64-unknown-linux-gnu/release/rhemacastd pi@<pi-ip>:/tmp/
-ssh pi@<pi-ip> 'sudo install -m755 /tmp/rhemacastd /usr/local/bin/ &&
-  sudo install -m644 server/rhemacastd.service /etc/systemd/system/ &&
-  sudo systemctl enable --now rhemacastd'
+./server/install.sh 192.168.99.73 [user]   # default user: stu
 ```
+It prints the exact sudo commands to run on the Pi (service `enable` =
+auto-start on power-on, `Restart=always` in the unit).
 
 ## Native Pi build (fallback, no cross toolchain)
 
@@ -80,7 +79,7 @@ Pi-as-AP setup is unchanged: see `ap-setup.md` / `hostapd.conf.example`.
 | `Cargo.toml` / `src/` | the whole server: `main.rs` CLI, `audio.rs` capture+Opus, `hub.rs` WebRTC+HTTP |
 | `rhemacastd.service` | systemd unit (single service) |
 | `web/listen.html` / `web/admin.html` | embedded UI (single source of truth, also served) |
-| `ap-setup.md` / `hostapd.conf.example` | Pi-as-AP docs (unchanged) |
+| `ap-setup.md` / `ap.sh` / `hostapd.conf.example` | Pi-as-AP docs + on/off toggle (netplan-based) |
 
 ## Troubleshooting
 
