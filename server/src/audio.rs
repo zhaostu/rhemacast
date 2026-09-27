@@ -20,7 +20,6 @@ pub const OPUS_PT: u8 = 111;
 
 pub struct SourceConfig {
     pub tone: Option<f32>,
-    pub device: Option<String>,
     pub bitrate: i32,
 }
 
@@ -37,6 +36,74 @@ fn dev_name(dev: &cpal::Device) -> String {
     dev.description()
         .map(|d| d.name().to_owned())
         .unwrap_or_else(|_| "<unnamed>".into())
+}
+
+// --- Admin mic selection: list, resolve, persist across reboot ---
+
+/// State-dir override for tests/dev (default is the system path below).
+const MIC_STATE_ENV: &str = "RHEMACAST_STATE_DIR";
+
+fn mic_state_file() -> std::path::PathBuf {
+    std::env::var(MIC_STATE_ENV)
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::path::PathBuf::from("/var/lib/rhemacastd"))
+        .join("mic-device")
+}
+
+/// Boot default when no --device flag is given: the persisted admin selection.
+pub fn load_mic_device() -> Option<String> {
+    std::fs::read_to_string(mic_state_file())
+        .ok()
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty())
+}
+
+/// Persist the admin selection (None = system default: remove the file).
+/// Returns false when unwritable (e.g. dev runs as non-root) — the selection
+/// still applies in memory for this run.
+pub fn save_mic_device(dev: Option<&str>) -> bool {
+    let path = mic_state_file();
+    let ok = match dev {
+        None => std::fs::remove_file(&path).is_ok() || !path.exists(),
+        Some(name) => {
+            if let Some(dir) = path.parent() {
+                if std::fs::create_dir_all(dir).is_err() {
+                    return false;
+                }
+            }
+            std::fs::write(&path, format!("{name}\n")).is_ok()
+        }
+    };
+    if !ok {
+        eprintln!("mic select: cannot persist to {} (ignored)", path.display());
+    }
+    ok
+}
+
+/// All input device names + the system default (for the admin UI).
+pub fn list_input_devices() -> (Vec<String>, Option<String>) {
+    let host = cpal::default_host();
+    let devices = host
+        .input_devices()
+        .map(|it| it.map(|d| dev_name(&d)).collect())
+        .unwrap_or_default();
+    let default = host.default_input_device().map(|d| dev_name(&d));
+    (devices, default)
+}
+
+/// Resolve an admin selection to an exact device name: exact match first,
+/// else substring (same rule as --device). None = no match.
+pub fn resolve_mic_device(want: &str) -> Option<String> {
+    let host = cpal::default_host();
+    let names: Vec<String> = host
+        .input_devices()
+        .ok()?
+        .map(|d| dev_name(&d))
+        .collect();
+    if let Some(n) = names.iter().find(|n| *n == want) {
+        return Some(n.clone());
+    }
+    names.into_iter().find(|n| n.contains(want))
 }
 
 struct Emitter {
@@ -152,16 +219,48 @@ fn tone_loop(bitrate: i32, st: Arc<AppState>, freq: f32) -> Result<()> {
 
 fn mic_loop(cfg: SourceConfig, st: Arc<AppState>) -> Result<()> {
     let udp_target = st.udp_out;
+    let mut em = Emitter::new(cfg.bitrate, udp_target)?;
+    // Reopen loop: admin device switches (mic_gen bump) and dead streams
+    // both land back here; open failures retry instead of killing the daemon.
+    loop {
+        let gen = st.mic_gen();
+        match open_mic(&st) {
+            Ok(sess) => {
+                st.log(&format!("mic: {}", sess.name));
+                match run_mic(sess, &st, &mut em, udp_target, gen) {
+                    Ok(()) => st.log("mic: switched, reopening"),
+                    Err(e) => {
+                        st.log(&format!("mic ended ({e:#}); reopen in 2s"));
+                        std::thread::sleep(std::time::Duration::from_secs(2));
+                    }
+                }
+            }
+            Err(e) => {
+                st.log(&format!("mic open failed ({e:#}); retry in 2s"));
+                std::thread::sleep(std::time::Duration::from_secs(2));
+            }
+        }
+    }
+}
+
+struct MicSession {
+    name: String,
+    stream: cpal::Stream,
+    rx: std::sync::mpsc::Receiver<Vec<f32>>,
+}
+
+fn open_mic(st: &AppState) -> Result<MicSession> {
     let host = cpal::default_host();
-    let device = match &cfg.device {
-        Some(want) => host
-            .input_devices()
-            .context("no input devices")?
-            .find(|d| dev_name(d).contains(want.as_str()))
+    let name = match st.mic_device() {
+        Some(want) => resolve_mic_device(&want)
             .context(format!("no input device matching '{want}'"))?,
-        None => host.default_input_device().context("no default input device")?,
+        None => dev_name(&host.default_input_device().context("no default input device")?),
     };
-    st.log(&format!("mic: {}", dev_name(&device)));
+    let device = host
+        .input_devices()
+        .context("no input devices")?
+        .find(|d| dev_name(d) == name)
+        .context(format!("mic vanished: '{name}'"))?;
 
     // Prefer 48kHz mono; otherwise take the default and convert.
     let supported: Vec<_> = device
@@ -288,11 +387,26 @@ fn mic_loop(cfg: SourceConfig, st: Arc<AppState>) -> Result<()> {
     };
     let stream = build(stream_cfg.sample_format())?;
     stream.play().context("mic play")?;
+    Ok(MicSession { name, stream, rx })
+}
 
-    let mut em = Emitter::new(cfg.bitrate, udp_target)?;
+/// Pump one open mic into the shared emitter until the admin switches
+/// devices (Ok) or the stream dies (Err → caller reopens).
+fn run_mic(
+    sess: MicSession,
+    st: &AppState,
+    em: &mut Emitter,
+    udp_target: Option<std::net::SocketAddr>,
+    gen: u64,
+) -> Result<()> {
+    let rx = sess.rx;
+    let stream = sess.stream;
     let mut pending: Vec<f32> = Vec::with_capacity(FRAME_SAMPLES * 2);
     let mut was_running = true;
     loop {
+        if st.mic_gen() != gen {
+            return Ok(());
+        }
         let running = st.is_running();
         if running != was_running {
             if running {

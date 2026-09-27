@@ -22,6 +22,10 @@ curl http://127.0.0.1:8080/api/status
 
 Other useful flags: `--list-devices`, `--device <name-match>`, `--bitrate 24000`,
 `--port 8080`, `--udp-out 192.168.4.50:5005`, `ADMIN_TOKEN=secret` env for `/api/*` auth.
+Mic can also be switched at runtime from admin.html (`GET /api/devices`,
+`POST /api/device {"device":"name"|null}`, null = system default); the
+selection persists in `/var/lib/rhemacastd/mic-device`
+(`RHEMACAST_STATE_DIR` override) across reboots.
 
 ## On-mic run (laptop or Pi)
 

@@ -37,13 +37,16 @@ async fn main() -> Result<()> {
     if args.list_devices {
         return audio::list_devices();
     }
-    let state = hub::AppState::new(args.udp_out);
+    let dev = args.device.clone().or_else(crate::audio::load_mic_device);
+    if let Some(d) = &args.device {
+        crate::audio::save_mic_device(Some(d));
+    }
+    let state = hub::AppState::new(args.udp_out, dev);
     state.log("rhemacastd starting");
 
     // Capture + encode runs on its own OS thread (all blocking I/O).
     let cfg = audio::SourceConfig {
         tone: args.tone,
-        device: args.device,
         bitrate: args.bitrate,
     };
     let st = state.clone();

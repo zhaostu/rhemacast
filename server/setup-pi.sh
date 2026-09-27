@@ -5,9 +5,9 @@ set -euo pipefail
 
 [ "$(id -u)" = 0 ] || { echo "run as root: sudo bash $0" >&2; exit 1; }
 
-# runtime lib (ALSA ships with the image; Opus does not):
+# runtime + AP packages (ALSA ships with the image; the rest does not):
 apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libopus0
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libopus0 hostapd dnsmasq iw
 
 install -m755 /tmp/rhemacastd /usr/local/bin/rhemacastd
 install -m644 /tmp/rhemacastd.service /etc/systemd/system/rhemacastd.service
@@ -15,8 +15,10 @@ install -m644 /tmp/rhemacastd.service /etc/systemd/system/rhemacastd.service
 install -m755 /tmp/ap.sh /usr/local/sbin/rhemacast-ap
 install -m644 /tmp/hostapd.conf.example /usr/local/sbin/hostapd.conf.example
 systemctl daemon-reload
-# enable = auto-start on power-on (unit also has Restart=always):
-systemctl enable --now rhemacastd
+# enable = auto-start on power-on (unit also has Restart=always).
+# restart (not start): re-runs pick up the new binary on an active service.
+systemctl enable rhemacastd
+systemctl restart rhemacastd
 
 echo "== status:"
 systemctl is-active rhemacastd
@@ -27,7 +29,11 @@ echo "   curl http://127.0.0.1:8080/api/status   (or from your laptop: http://$(
 echo
 read -r -p "Switch to offline AP mode now? SSH will drop; rejoin via the rhemacast AP at 192.168.4.1 [y/N] " ans || ans=N
 if [[ "$ans" =~ ^[Yy]$ ]]; then
-    /usr/local/sbin/rhemacast-ap on
+    if /usr/local/sbin/rhemacast-ap on; then
+        echo "AP mode on (rejoin via the rhemacast AP at 192.168.4.1)"
+    else
+        echo "AP setup failed — auto-reverted to wifi client (see /var/log/rhemacast-ap.log)"
+    fi
 else
     echo "staying in LAN client mode (later: sudo rhemacast-ap on)"
 fi

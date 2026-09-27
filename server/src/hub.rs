@@ -31,7 +31,9 @@ use webrtc::{
     track::track_local::{TrackLocal, TrackLocalWriter, track_local_static_rtp::TrackLocalStaticRTP},
 };
 
-use crate::audio::{FRAME_SAMPLES, OPUS_PT, SAMPLE_RATE};
+use crate::audio::{
+    FRAME_SAMPLES, OPUS_PT, SAMPLE_RATE, list_input_devices, resolve_mic_device, save_mic_device,
+};
 
 const LISTEN_HTML: &str = include_str!("../web/listen.html");
 const ADMIN_HTML: &str = include_str!("../web/admin.html");
@@ -49,10 +51,14 @@ pub struct AppState {
     pub udp_out: Option<SocketAddr>,
     pub token: String,
     next_id: AtomicU64,
+    /// Admin mic selection (exact device name; None = system default).
+    pub mic_device: Mutex<Option<String>>,
+    /// Bumped on every selection so the audio thread reopens the mic.
+    pub mic_gen: AtomicU64,
 }
 
 impl AppState {
-    pub fn new(udp_out: Option<SocketAddr>) -> Arc<Self> {
+    pub fn new(udp_out: Option<SocketAddr>, mic_device: Option<String>) -> Arc<Self> {
         let mut m = MediaEngine::default();
         m.register_default_codecs()
             .expect("register webrtc codecs");
@@ -71,6 +77,8 @@ impl AppState {
             udp_out,
             token: std::env::var("ADMIN_TOKEN").unwrap_or_default(),
             next_id: AtomicU64::new(1),
+            mic_device: Mutex::new(mic_device),
+            mic_gen: AtomicU64::new(0),
         });
         if st.token.is_empty() {
             eprintln!("WARN: ADMIN_TOKEN empty — /api/* open to LAN");
@@ -95,6 +103,35 @@ impl AppState {
         self.level_peak.store(peak.to_bits(), Ordering::Relaxed);
         self.level_ts.store(now_unix_millis(), Ordering::Relaxed);
     }
+
+    pub fn mic_device(&self) -> Option<String> {
+        self.mic_device.lock().unwrap().clone()
+    }
+
+    pub fn mic_gen(&self) -> u64 {
+        self.mic_gen.load(Ordering::Relaxed)
+    }
+
+    /// Admin selection: None = system default. Resolves to an exact device
+    /// name, persists for reboot, bumps the generation so the audio thread
+    /// reopens. Err = no match, nothing changes.
+    pub fn set_mic_device(&self, dev: Option<String>) -> Result<Option<String>, String> {
+        let resolved = match dev {
+            None => None,
+            Some(want) => match resolve_mic_device(&want) {
+                Some(exact) => Some(exact),
+                None => return Err(format!("no input device matching '{want}'")),
+            },
+        };
+        *self.mic_device.lock().unwrap() = resolved.clone();
+        self.mic_gen.fetch_add(1, Ordering::Relaxed);
+        save_mic_device(resolved.as_deref());
+        self.log(&format!(
+            "mic select: {}",
+            resolved.as_deref().unwrap_or("<default>")
+        ));
+        Ok(resolved)
+    }
 }
 
 fn now_unix() -> u64 {
@@ -118,6 +155,8 @@ pub async fn serve(state: Arc<AppState>, port: u16) -> Result<()> {
         .route("/api/status", get(api_status))
         .route("/api/level", get(api_level))
         .route("/api/logs", get(api_logs))
+        .route("/api/devices", get(api_devices))
+        .route("/api/device", post(api_device))
         .route("/api/publish/{action}", post(api_publish))
         .route("/", get(|| async { Redirect::to("/admin.html") }))
         .route("/listen.html", get(|| async { Html(LISTEN_HTML) }))
@@ -331,6 +370,78 @@ async fn api_logs(State(st): State<Arc<AppState>>, headers: HeaderMap) -> impl I
         StatusCode::OK,
         serde_json::json!({ "ok": true, "lines": lines, "source": "ring" }),
     )
+}
+
+async fn api_devices(State(st): State<Arc<AppState>>, headers: HeaderMap) -> impl IntoResponse {
+    if let Some(r) = unauthorized(&st, &headers) {
+        return r;
+    }
+    let (devices, default) = list_input_devices();
+    let current = match st.mic_device() {
+        None => default.clone(),
+        Some(s) => resolve_mic_device(&s).or(Some(s)),
+    };
+    json(
+        StatusCode::OK,
+        serde_json::json!({ "ok": true, "devices": devices, "default": default, "current": current }),
+    )
+}
+
+async fn api_device(
+    State(st): State<Arc<AppState>>,
+    headers: HeaderMap,
+    body: String,
+) -> impl IntoResponse {
+    if let Some(r) = unauthorized(&st, &headers) {
+        return r;
+    }
+    let v: serde_json::Value = if body.trim().is_empty() {
+        serde_json::Value::Null
+    } else {
+        match serde_json::from_str(&body) {
+            Ok(v) => v,
+            Err(e) => {
+                return json(
+                    StatusCode::BAD_REQUEST,
+                    serde_json::json!({ "ok": false, "error": format!("bad json: {e}") }),
+                );
+            }
+        }
+    };
+    let want: Option<String> = match &v {
+        serde_json::Value::Null => None,
+        serde_json::Value::Object(_) => match v.get("device") {
+            None | Some(serde_json::Value::Null) => None,
+            Some(serde_json::Value::String(s)) => {
+                if s.is_empty() {
+                    None
+                } else {
+                    Some(s.clone())
+                }
+            }
+            _ => {
+                return json(
+                    StatusCode::BAD_REQUEST,
+                    serde_json::json!({ "ok": false, "error": "\"device\" must be a string or null" }),
+                );
+            }
+        },
+        _ => {
+            return json(
+                StatusCode::BAD_REQUEST,
+                serde_json::json!({ "ok": false, "error": "expected {\"device\": \"name\"|null}" }),
+            );
+        }
+    };
+    match st.set_mic_device(want) {
+        Ok(resolved) => {
+            json(StatusCode::OK, serde_json::json!({ "ok": true, "device": resolved }))
+        }
+        Err(e) => json(
+            StatusCode::NOT_FOUND,
+            serde_json::json!({ "ok": false, "error": e }),
+        ),
+    }
 }
 
 async fn api_publish(

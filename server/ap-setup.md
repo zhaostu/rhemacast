@@ -26,7 +26,7 @@ sudo ./ap.sh on
 # ssid/country_code (re-run ap.sh on afterwards).
 ```
 
-What it does: installs hostapd+dnsmasq, stashes
+What it does (packages already installed by `setup-pi.sh`): stashes
 `/etc/netplan/30-wifis-dhcp.yaml` (so netplan stops `netplan-wpa@wlan0`
 and frees the radio), applies a static `192.168.4.1/24` via netplan,
 sets Debian's `DAEMON_CONF`, unmasks + enables hostapd and dnsmasq.

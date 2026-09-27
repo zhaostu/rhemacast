@@ -20,9 +20,15 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 [ "$(id -u)" = 0 ] || { echo "run as root: sudo $0 on|off" >&2; exit 1; }
 
+# Post-drop output goes to a persistent trace (SSH is dead past
+# `netplan apply`, so terminal output would vanish). Pre-drop output stays
+# on the terminal AND is tee'd here — never exec-redirect from the top:
+# that hid everything, including the wifi payload.
+LOG=/var/log/rhemacast-ap.log
+echo "=== $(date -Is) ap.sh $MODE" | tee -a "$LOG" >/dev/null
+
 ap_on() {
-    apt-get update -qq
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq hostapd dnsmasq
+    # Packages (hostapd, dnsmasq) come from setup-pi.sh — AP toggle only.
     # 1. Free the radio: stash the wifi-client config so netplan stops
     #    netplan-wpa@wlan0. Kept verbatim for a clean revert.
     if [ -f "$WIFI_YAML" ]; then
@@ -30,17 +36,22 @@ ap_on() {
         echo "stashed wifi-client config -> $WIFI_BAK"
     fi
     # 2. Static AP address via netplan (same manager as before).
+    # NOTE: this must be an `ethernets` entry, not `wifis` — netplan rejects
+    # a wifis device with no access-points, and ethernets only sets L3,
+    # leaving the radio free for hostapd (no wpa_supplicant is started).
+    # Mode 0600: netplan refuses files accessible by others.
     cat > "$AP_YAML" <<'EOF'
 network:
   version: 2
   renderer: networkd
-  wifis:
+  ethernets:
     wlan0:
       dhcp4: false
       dhcp6: false
       addresses: [192.168.4.1/24]
 EOF
-    netplan apply
+    chmod 600 "$AP_YAML"
+    # NOTE: `netplan apply` runs at the END (see below) — it drops SSH.
     # 3. hostapd config: install the example only when there is no config
     # yet (never overwrite an operator-edited one).
     if [ ! -f "$HOSTAPD_CONF" ]; then
@@ -57,7 +68,10 @@ EOF
     # WPA password: generate once (alphanumeric => QR-safe, no escaping),
     # keep across re-runs so already-printed codes stay valid.
     if ! grep -qE '^wpa_passphrase=' "$HOSTAPD_CONF"; then
-        AP_PASS="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)"
+        # NOTE: `|| true` — head closing the pipe SIGPIPEs tr, which
+        # pipefail+errexit would otherwise treat as fatal (this killed
+        # the very first on-site run: conf installed, nothing after it).
+        AP_PASS="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16 || true)"
         sed -i '/^[#[:space:]]*wpa=/d; /^[#[:space:]]*wpa_passphrase=/d; /^[#[:space:]]*wpa_key_mgmt=/d; /^[#[:space:]]*rsn_pairwise=/d' "$HOSTAPD_CONF"
         cat >> "$HOSTAPD_CONF" <<EOF
 wpa=2
@@ -72,8 +86,8 @@ EOF
     AP_SSID="$(grep -E '^ssid=' "$HOSTAPD_CONF" | cut -d= -f2-)"
     AP_PW="$(grep -E '^wpa_passphrase=' "$HOSTAPD_CONF" | cut -d= -f2-)"
     esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/;/\\;/g; s/,/\\,/g; s/:/\\:/g; s/"/\\"/g'; }
-    echo "feed this to your QR generator:"
-    echo "WIFI:T:WPA;S:$(esc "$AP_SSID");P:$(esc "$AP_PW");;"
+    { echo "feed this to your QR generator:";
+      echo "WIFI:T:WPA;S:$(esc "$AP_SSID");P:$(esc "$AP_PW");;"; } | tee -a "$LOG"
     # Debian starts hostapd with no config unless DAEMON_CONF is set.
     if grep -q '^#\?DAEMON_CONF=' /etc/default/hostapd 2>/dev/null; then
         sed -i 's|^#\?DAEMON_CONF=.*|DAEMON_CONF="/etc/hostapd/hostapd.conf"|' /etc/default/hostapd
@@ -88,9 +102,24 @@ dhcp-range=192.168.4.10,192.168.4.100,255.255.255.0,24h
 EOF
     grep -q '^conf-dir=/etc/dnsmasq.d' /etc/dnsmasq.conf 2>/dev/null \
         || echo 'conf-dir=/etc/dnsmasq.d/,*.conf' >> /etc/dnsmasq.conf
+    # Address switch LAST: wlan0 leaves the LAN here and takes this SSH
+    # session with it (trap HUP keeps the script running). Password payload
+    # was already printed above, so nothing after this point is seen remotely.
+    netplan apply
+    # Past the SSH drop: log only from here on.
+    exec >>"$LOG" 2>&1
     # Debian ships hostapd masked; enable would silently do nothing.
     systemctl unmask hostapd >/dev/null 2>&1 || true
     systemctl enable --now hostapd dnsmasq
+    # Fail LOUD if hostapd didn't survive (past the SSH drop nobody sees
+    # this live — it lands in the ap log). Revert with: $0 off
+    sleep 3
+    if ! systemctl is-active -q hostapd; then
+        echo "ERROR: hostapd failed to start — auto-reverting to wifi client" >&2
+        journalctl -u hostapd -n 10 --no-pager >&2 || true
+        ap_off
+        exit 1
+    fi
     echo "AP up: ssid from $HOSTAPD_CONF, Pi at 192.168.4.1 (join it; ssh stu@192.168.4.1)"
 }
 
@@ -102,6 +131,8 @@ ap_off() {
         echo "restored wifi-client config"
     fi
     netplan apply
+    # Session over AP drops here too when reverting remotely; log the rest.
+    exec >>"$LOG" 2>&1
     echo "back to wifi client"
 }
 

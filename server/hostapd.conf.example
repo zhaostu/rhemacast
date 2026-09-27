@@ -1,15 +1,22 @@
 # rhemacast AP example — 2.4GHz default for max phone compatibility.
-# 5GHz works on Pi 3B+/4/5 (change channel + hw_mode=a) but halves range
-# through walls; keep 2.4GHz for outdoors/crowds.
+# NOTE: hostapd.conf allows ONLY full-line comments (# in column 1).
+# A trailing comment on a value line is parsed as PART OF THE VALUE and
+# fails startup (e.g. hw_mode='g # ...' -> "unknown hw_mode"). Keep every
+# comment on its own line.
+# 5GHz works on Pi 3B+/4/5 but halves range through walls; keep 2.4GHz
+# for outdoors/crowds.
 interface=wlan0
 ssid=rhemacast
-hw_mode=g            # 2.4GHz; for 5GHz use: hw_mode=a, channel=36 (check reg domain!)
+# 2.4GHz (for 5GHz use: hw_mode=a, channel=36/40/44/48, check reg domain!):
+hw_mode=g
 channel=6
-country_code=US      # <-- SET your ISO code (DE/GB/...); required for 5GHz + tx power
+# Your ISO code (DE/GB/...); required for 5GHz + tx power:
+country_code=US
 auth_algs=1
 wmm_enabled=1
-# Open network (offline broadcast use; add wpa_passphrase=... for private events):
-# wpa=2
-# wpa_passphrase=changeme-long-enough
-# wpa_key_mgmt=WPA-PSK
-# rsn_pairwise=CCMP
+# Open network (offline broadcast use). ap.sh adds WPA below on first run;
+# or set a passphrase manually by uncommenting:
+#wpa=2
+#wpa_passphrase=changeme-long-enough
+#wpa_key_mgmt=WPA-PSK
+#rsn_pairwise=CCMP
