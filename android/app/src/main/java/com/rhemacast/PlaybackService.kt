@@ -31,7 +31,7 @@ class PlaybackService : Service() {
         private const val CHANNEL_ID = "rhemacast_playback"
         private const val NOTIF_ID = 1
 
-        private val _status = MutableStateFlow("Idle")
+        private val _status = MutableStateFlow("")
         val status = _status.asStateFlow()
         private val _stats = MutableStateFlow("")
         val stats = _stats.asStateFlow()
@@ -62,6 +62,7 @@ class PlaybackService : Service() {
     override fun onCreate() {
         super.onCreate()
         ensureChannel()
+        if (_status.value.isEmpty()) _status.value = getString(R.string.st_idle)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -71,7 +72,7 @@ class PlaybackService : Service() {
                     client?.disconnect()
                     client?.release()
                     client = null
-                    _status.value = "Disconnected"
+                    _status.value = getString(R.string.st_disconnected)
                     _stats.value = ""
                 }
                 stopForeground(STOP_FOREGROUND_REMOVE)

@@ -3,10 +3,16 @@ import AVFoundation
 import Combine
 import Foundation
 
+/// Localized string (keys live in Localizable.xcstrings).
+private func L(_ key: String) -> String { NSLocalizedString(key, comment: "") }
+private func LF(_ key: String, _ args: CVarArg...) -> String {
+    String(format: NSLocalizedString(key, comment: ""), arguments: args)
+}
+
 /// Audio-only recvonly WebRTC listener via WHEP (rhemacastd).
 final class WebRTCClient: NSObject, ObservableObject {
-    @Published var status: String = "disconnected"
-    @Published var statsLine: String = "—"
+    @Published var status: String = L("disconnected")
+    @Published var statsLine: String = L("—")
     @Published var isLive = false
 
     private var factory: RTCPeerConnectionFactory?
@@ -23,13 +29,13 @@ final class WebRTCClient: NSObject, ObservableObject {
     func connect(hostIP: String) {
         teardown()
         let ip = hostIP.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !ip.isEmpty else { status = "error: empty IP"; return }
+        guard !ip.isEmpty else { status = L("error: empty IP"); return }
         guard let url = URL(string: "http://\(ip):8080/whep") else {
-            status = "error: bad IP"
+            status = L("error: bad IP")
             return
         }
         whepURL = url
-        status = "connecting…"
+        status = L("connecting…")
         configureAudioSession()
         setupPeerConnection()
         makeOfferAndWhep(url: url)
@@ -39,8 +45,8 @@ final class WebRTCClient: NSObject, ObservableObject {
         teardown()
         DispatchQueue.main.async {
             self.isLive = false
-            self.status = "disconnected"
-            self.statsLine = "—"
+            self.status = L("disconnected")
+            self.statsLine = L("—")
         }
     }
 
@@ -79,7 +85,7 @@ final class WebRTCClient: NSObject, ObservableObject {
         if factory == nil {
             factory = RTCPeerConnectionFactory()
         }
-        guard let factory else { status = "error: no WebRTC factory"; return }
+        guard let factory else { status = L("error: no WebRTC factory"); return }
         let config = RTCConfiguration()
         config.sdpSemantics = .unifiedPlan
         let constraints = RTCMediaConstraints(
@@ -88,7 +94,7 @@ final class WebRTCClient: NSObject, ObservableObject {
         )
         peerConnection = factory.peerConnection(with: config, constraints: constraints, delegate: self)
         if peerConnection == nil {
-            status = "error: peer connection failed"
+            status = L("error: peer connection failed")
         }
     }
 
@@ -101,14 +107,14 @@ final class WebRTCClient: NSObject, ObservableObject {
         pc.offer(for: constraints) { [weak self] offer, error in
             guard let self else { return }
             if let error {
-                self.setStatus("offer error: \(error.localizedDescription)")
+                self.setStatus(L("offer error:") + " \(error.localizedDescription)")
                 return
             }
-            guard let offer else { self.setStatus("offer error: nil SDP"); return }
+            guard let offer else { self.setStatus(L("offer error: nil SDP")); return }
             pc.setLocalDescription(offer) { [weak self] error in
                 guard let self else { return }
                 if let error {
-                    self.setStatus("local SDP error: \(error.localizedDescription)")
+                    self.setStatus(L("local SDP error:") + " \(error.localizedDescription)")
                     return
                 }
                 self.postWhepOffer(url: url, sdp: offer.sdp)
@@ -126,7 +132,7 @@ final class WebRTCClient: NSObject, ObservableObject {
         URLSession.shared.dataTask(with: req) { [weak self] data, response, error in
             guard let self else { return }
             if let error {
-                self.setStatus("offline: \(error.localizedDescription)")
+                self.setStatus(L("offline:") + " \(error.localizedDescription)")
                 return
             }
             guard let http = response as? HTTPURLResponse,
@@ -134,7 +140,7 @@ final class WebRTCClient: NSObject, ObservableObject {
                   let data, let answerSDP = String(data: data, encoding: .utf8),
                   !answerSDP.isEmpty else {
                 let code = (response as? HTTPURLResponse)?.statusCode ?? -1
-                self.setStatus("WHEP error: HTTP \(code)")
+                self.setStatus(L("WHEP error: HTTP") + " \(code)")
                 return
             }
             if let location = http.value(forHTTPHeaderField: "Location") {
@@ -144,10 +150,10 @@ final class WebRTCClient: NSObject, ObservableObject {
             self.peerConnection?.setRemoteDescription(answer) { [weak self] error in
                 guard let self else { return }
                 if let error {
-                    self.setStatus("remote SDP error: \(error.localizedDescription)")
+                    self.setStatus(L("remote SDP error:") + " \(error.localizedDescription)")
                     return
                 }
-                self.setStatus("live")
+                self.setStatus(L("live"))
                 DispatchQueue.main.async { self.isLive = true }
                 self.startStatsPolling()
             }
@@ -187,10 +193,10 @@ final class WebRTCClient: NSObject, ObservableObject {
             }
             let line: String
             switch (rttMs, jitterMs) {
-            case let (r?, j?): line = String(format: "RTT %.0f ms · jitter %.1f ms", r, j)
-            case let (r?, nil): line = String(format: "RTT %.0f ms", r)
-            case let (nil, j?): line = String(format: "jitter %.1f ms", j)
-            default: line = "live · stats pending…"
+            case let (r?, j?): line = LF("RTT %.0f ms · jitter %.1f ms", r, j)
+            case let (r?, nil): line = LF("RTT %.0f ms", r)
+            case let (nil, j?): line = LF("jitter %.1f ms", j)
+            default: line = L("live · stats pending…")
             }
             DispatchQueue.main.async { self.statsLine = line }
         }
@@ -199,7 +205,7 @@ final class WebRTCClient: NSObject, ObservableObject {
     private func setStatus(_ s: String) {
         DispatchQueue.main.async {
             self.status = s
-            self.isLive = (s == "live")
+            self.isLive = (s == L("live"))
         }
     }
 }
@@ -218,10 +224,10 @@ extension WebRTCClient: RTCPeerConnectionDelegate {
     func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {}
     func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
         switch newState {
-        case .connected, .completed: setStatus("live")
-        case .disconnected: setStatus("reconnecting…")
-        case .failed: setStatus("connection failed")
-        case .closed: setStatus("disconnected")
+        case .connected, .completed: setStatus(L("live"))
+        case .disconnected: setStatus(L("reconnecting…"))
+        case .failed: setStatus(L("connection failed"))
+        case .closed: setStatus(L("disconnected"))
         default: break
         }
     }

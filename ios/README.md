@@ -13,8 +13,11 @@ ios/Rhemacast/RhemacastApp.swift   # @main App entry
 ios/Rhemacast/ContentView.swift    # single screen: big Listen/Stop toggle, output picker, volume, status, Settings
 ios/Rhemacast/WebRTCClient.swift   # RTCPeerConnection (audio recvonly) + WHEP + stats + cleanup
 ios/Rhemacast/AudioRouter.swift    # output routing (Auto = Headphones, loudspeaker opt-in)
+ios/Rhemacast/Localizable.xcstrings # en/es/zh-Hans UI strings (auto-applied from phone language)
 ios/Info.plist                     # audio bg mode + local-network permission + ATS local exception + rhemacast:// URL scheme
+ios/es.lproj/InfoPlist.strings ios/zh-Hans.lproj/InfoPlist.strings  # localized permission prompt
 ```
+Drag all of the above into the target (swift + strings + plist all copy in).
 
 Project setup is checked in: `ios/Info.plist` holds the custom keys
 (`UIBackgroundModes=array(audio)`, `NSLocalNetworkUsageDescription`, `NSAppTransportSecurity` dict),

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="title_listener">Rhemacast Oyente</string>
+    <string name="status_format">Estado: %1$s</string>
+    <string name="listen">Escuchar</string>
+    <string name="stop">Detener</string>
+    <string name="start_listening">Empezar a escuchar</string>
+    <string name="stop_listening">Dejar de escuchar</string>
+    <string name="output">Salida</string>
+    <string name="out_auto">Automático</string>
+    <string name="out_headphones">Auriculares</string>
+    <string name="out_speaker">Altavoz</string>
+    <string name="volume">Volumen</string>
+    <string name="settings">Ajustes</string>
+    <string name="server_ip">IP del servidor</string>
+    <string name="whep_format">WHEP: http://%1$s:8080/whep</string>
+    <string name="broadcast_controls">Controles de emisión</string>
+    <string name="web_test">Prueba web</string>
+    <string name="st_idle">Inactivo</string>
+    <string name="st_disconnected">Desconectado</string>
+    <string name="st_connecting">Conectando a %1$s…</string>
+    <string name="st_playing">Reproduciendo desde %1$s</string>
+    <string name="st_error">Error: %1$s</string>
+    <string name="st_unreachable">Inalcanzable. Comprueba la misma LAN, la IP y rhemacastd :8080.</string>
+    <string name="st_conn_disconnected">Conexión desconectada</string>
+    <string name="st_conn_failed">Conexión fallida</string>
+    <string name="stats_receiving">recibiendo audio…</string>
+    <string name="stats_rx">recibidos %1$d KB</string>
+    <string name="stats_lost">perdidos %1$d</string>
+    <string name="stats_jitter">jitter %1$.1f ms</string>
+</resources>

@@ -14,9 +14,9 @@ enum ListenerOutput: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .auto: return "Auto"
-        case .headphones: return "Headphones"
-        case .speaker: return "Loudspeaker"
+        case .auto: return NSLocalizedString("Auto", comment: "")
+        case .headphones: return NSLocalizedString("Headphones", comment: "")
+        case .speaker: return NSLocalizedString("Loudspeaker", comment: "")
         }
     }
 }

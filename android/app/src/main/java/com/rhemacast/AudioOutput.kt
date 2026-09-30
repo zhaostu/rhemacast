@@ -1,17 +1,21 @@
 package com.rhemacast
 
+import android.content.Context
 import android.media.AudioManager
+import androidx.annotation.StringRes
 
 /**
  * Output routing for the listener. Policy: never auto-select the
  * loudspeaker — Auto resolves to Headphones (phone/wired/Bluetooth
  * via system priority). Loudspeaker stays as an explicit user choice.
  */
-enum class AudioOutput(val label: String) {
-    AUTO("Auto"),
-    HEADPHONES("Headphones"),
-    SPEAKER("Loudspeaker"),
+enum class AudioOutput(@StringRes val labelRes: Int) {
+    AUTO(R.string.out_auto),
+    HEADPHONES(R.string.out_headphones),
+    SPEAKER(R.string.out_speaker),
 }
+
+fun AudioOutput.label(context: Context): String = context.getString(labelRes)
 
 object AudioRouter {
     @Volatile var selected: AudioOutput = AudioOutput.AUTO

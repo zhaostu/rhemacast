@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="title_listener">Rhemacast 收听</string>
+    <string name="status_format">状态：%1$s</string>
+    <string name="listen">收听</string>
+    <string name="stop">停止</string>
+    <string name="start_listening">开始收听</string>
+    <string name="stop_listening">停止收听</string>
+    <string name="output">输出</string>
+    <string name="out_auto">自动</string>
+    <string name="out_headphones">耳机</string>
+    <string name="out_speaker">扬声器</string>
+    <string name="volume">音量</string>
+    <string name="settings">设置</string>
+    <string name="server_ip">服务器 IP</string>
+    <string name="whep_format">WHEP: http://%1$s:8080/whep</string>
+    <string name="broadcast_controls">广播控制</string>
+    <string name="web_test">网页测试</string>
+    <string name="st_idle">空闲</string>
+    <string name="st_disconnected">已断开</string>
+    <string name="st_connecting">正在连接 %1$s…</string>
+    <string name="st_playing">正在播放（%1$s）</string>
+    <string name="st_error">错误：%1$s</string>
+    <string name="st_unreachable">无法连接。请检查同一局域网、IP，以及 rhemacastd :8080。</string>
+    <string name="st_conn_disconnected">连接已断开</string>
+    <string name="st_conn_failed">连接失败</string>
+    <string name="stats_receiving">正在接收音频…</string>
+    <string name="stats_rx">已接收 %1$d KB</string>
+    <string name="stats_lost">丢失 %1$d</string>
+    <string name="stats_jitter">抖动 %1$.1f 毫秒</string>
+</resources>

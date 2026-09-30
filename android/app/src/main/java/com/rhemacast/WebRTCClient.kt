@@ -68,7 +68,7 @@ class WebRTCClient(
         require(ip.isNotEmpty()) { "Empty IP" }
         disconnectInternal(silent = true)
         try {
-            listener.onStatus("Connecting to $ip …")
+            listener.onStatus(context.getString(R.string.st_connecting, ip))
             ensureFactory()
             val pc = createPeerConnection()
             peerConnection = pc
@@ -90,7 +90,7 @@ class WebRTCClient(
             AudioRouter.apply(am)
             watchRoutes()
             connected = true
-            listener.onStatus("Playing from $ip")
+            listener.onStatus(context.getString(R.string.st_playing, ip))
             startStatsLoop()
         } catch (e: Exception) {
             disconnectInternal(silent = true)
@@ -103,10 +103,10 @@ class WebRTCClient(
                     e is java.net.ConnectException ||
                     e is java.net.SocketTimeoutException ||
                     e is java.io.IOException
-                -> "Unreachable. Check same LAN, IP, and rhemacastd :8080."
+                -> context.getString(R.string.st_unreachable)
                 else -> e.message ?: e.toString()
             }
-            listener.onStatus("Error: $hint")
+            listener.onStatus(context.getString(R.string.st_error, hint))
             listener.onStats("")
         }
     }
@@ -164,7 +164,13 @@ class WebRTCClient(
             override fun onIceConnectionChange(s: PeerConnection.IceConnectionState) {
                 if (s == PeerConnection.IceConnectionState.FAILED ||
                     s == PeerConnection.IceConnectionState.DISCONNECTED
-                ) listener.onStatus("Connection ${s.name.lowercase()}")
+                ) listener.onStatus(
+                    if (s == PeerConnection.IceConnectionState.FAILED) {
+                        context.getString(R.string.st_conn_failed)
+                    } else {
+                        context.getString(R.string.st_conn_disconnected)
+                    },
+                )
             }
             override fun onSignalingChange(s: PeerConnection.SignalingState) = Unit
             override fun onIceConnectionReceivingChange(b: Boolean) = Unit
@@ -283,13 +289,13 @@ class WebRTCClient(
                 val lost = (m["packetsLost"] as? Number)?.toLong()
                 val jitter = (m["jitter"] as? Number)?.toDouble()
                 val parts = mutableListOf<String>()
-                bytes?.let { parts += "rx ${(it / 1024)} KB" }
-                lost?.let { parts += "lost $it" }
-                jitter?.let { parts += "jitter ${"%.1f".format(it * 1000)} ms" }
+                bytes?.let { parts += context.getString(R.string.stats_rx, it / 1024) }
+                lost?.let { parts += context.getString(R.string.stats_lost, it) }
+                jitter?.let { parts += context.getString(R.string.stats_jitter, it * 1000) }
                 if (parts.isNotEmpty()) return parts.joinToString(" · ")
             }
         }
-        return "receiving audio…"
+        return context.getString(R.string.stats_receiving)
     }
 
     private var deviceCallback: AudioDeviceCallback? = null
@@ -351,7 +357,7 @@ class WebRTCClient(
         } catch (_: Exception) {
         }
         if (!silent) {
-            listener.onStatus("Disconnected")
+            listener.onStatus(context.getString(R.string.st_disconnected))
             listener.onStats("")
         }
     }

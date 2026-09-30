@@ -38,7 +38,7 @@ struct ContentView: View {
                         client.connect(hostIP: serverIP)
                     }
                 } label: {
-                    Text(client.isLive ? "Stop" : "Listen")
+                    Text(client.isLive ? String(localized: "Stop") : String(localized: "Listen"))
                         .font(.title)
                         .bold()
                         .frame(width: 200, height: 200)
@@ -46,7 +46,7 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .clipShape(Circle())
                 }
-                .accessibilityLabel(client.isLive ? "Stop listening" : "Start listening")
+                .accessibilityLabel(client.isLive ? String(localized: "Stop listening") : String(localized: "Start listening"))
 
                 Spacer()
 
@@ -86,7 +86,7 @@ struct ContentView: View {
                                     .keyboardType(.decimalPad)
                                     .autocorrectionDisabled()
                                     .textInputAutocapitalization(.never)
-                                Text("WHEP: http://\(host):8080/whep")
+                                Text(String(format: NSLocalizedString("WHEP: http://%@:8080/whep", comment: ""), host))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }

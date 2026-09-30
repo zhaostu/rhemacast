@@ -46,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -129,8 +130,8 @@ fun ListenerScreen(deepLinkIp: String? = null, deepLinkNonce: Int = 0) {
         Modifier.fillMaxSize().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Rhemacast Listener", style = MaterialTheme.typography.headlineSmall)
-        Text("Status: $status", style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(R.string.title_listener), style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.status_format, status), style = MaterialTheme.typography.bodyLarge)
         if (stats.isNotEmpty()) Text(stats, style = MaterialTheme.typography.bodyMedium)
 
         // Big central on/off toggle.
@@ -155,7 +156,7 @@ fun ListenerScreen(deepLinkIp: String? = null, deepLinkNonce: Int = 0) {
                 modifier = Modifier.size(200.dp),
             ) {
                 Text(
-                    if (playing) "Stop" else "Listen",
+                    if (playing) stringResource(R.string.stop) else stringResource(R.string.listen),
                     fontSize = 28.sp,
                 )
             }
@@ -167,13 +168,13 @@ fun ListenerScreen(deepLinkIp: String? = null, deepLinkNonce: Int = 0) {
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Output", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.output), style = MaterialTheme.typography.bodySmall)
             Box {
                 TextButton(
                     onClick = { outputMenuOpen = true },
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                 ) {
-                    Text(selected.label, style = MaterialTheme.typography.bodySmall)
+                    Text(selected.label(context), style = MaterialTheme.typography.bodySmall)
                 }
                 DropdownMenu(
                     expanded = outputMenuOpen,
@@ -181,7 +182,7 @@ fun ListenerScreen(deepLinkIp: String? = null, deepLinkNonce: Int = 0) {
                 ) {
                     for (o in outputs) {
                         DropdownMenuItem(
-                            text = { Text(o.label, style = MaterialTheme.typography.bodySmall) },
+                            text = { Text(o.label(context), style = MaterialTheme.typography.bodySmall) },
                             onClick = {
                                 outputMenuOpen = false
                                 selected = o
@@ -196,7 +197,7 @@ fun ListenerScreen(deepLinkIp: String? = null, deepLinkNonce: Int = 0) {
             }
         }
 
-        Text("Volume")
+        Text(stringResource(R.string.volume))
         Slider(
             value = volume,
             onValueChange = {
@@ -213,7 +214,7 @@ fun ListenerScreen(deepLinkIp: String? = null, deepLinkNonce: Int = 0) {
             onClick = { settingsExpanded = true },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Settings")
+            Text(stringResource(R.string.settings))
         }
         if (settingsExpanded) {
             ModalBottomSheet(
@@ -223,24 +224,24 @@ fun ListenerScreen(deepLinkIp: String? = null, deepLinkNonce: Int = 0) {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
                 ) {
-                    Text("Settings", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings), style = MaterialTheme.typography.titleMedium)
                     OutlinedTextField(
                         value = ip,
                         onValueChange = { ip = it.trim() },
-                        label = { Text("Server IP") },
+                        label = { Text(stringResource(R.string.server_ip)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    Text("WHEP: http://$ip:8080/whep", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.whep_format, ip), style = MaterialTheme.typography.bodySmall)
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedButton(onClick = {
                             val host = ip.ifBlank { "192.168.4.1" }
                             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("http://$host:8080/admin.html")))
-                        }) { Text("Broadcast controls") }
+                        }) { Text(stringResource(R.string.broadcast_controls)) }
                         OutlinedButton(onClick = {
                             val host = ip.ifBlank { "192.168.4.1" }
                             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("http://$host:8080/listen.html")))
-                        }) { Text("Web test") }
+                        }) { Text(stringResource(R.string.web_test)) }
                     }
                     Spacer(Modifier.height(16.dp))
                 }
