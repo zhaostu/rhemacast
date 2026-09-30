@@ -27,3 +27,5 @@ Audio-only WebRTC listener (WHEP) for the broadcast. No microphone use.
 - Errors (unreachable host, bad IP, `rhemacastd` down) surface as status text;
   nothing crashes offline.
 - No secrets in the app; the IP is user-entered at runtime.
+- Deep link: `rhemacast://listen?ip=<host>` (QR from `ap.sh`, intent-filter on
+  `.MainActivity`) tunes + auto-plays; no-op if already on that server.

@@ -87,7 +87,9 @@ EOF
     AP_PW="$(grep -E '^wpa_passphrase=' "$HOSTAPD_CONF" | cut -d= -f2-)"
     esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/;/\\;/g; s/,/\\,/g; s/:/\\:/g; s/"/\\"/g'; }
     { echo "feed this to your QR generator:";
-      echo "WIFI:T:WPA;S:$(esc "$AP_SSID");P:$(esc "$AP_PW");;"; } | tee -a "$LOG"
+      echo "WIFI:T:WPA;S:$(esc "$AP_SSID");P:$(esc "$AP_PW");;";
+      echo "app deep-link (QR this to tune+play):";
+      echo "rhemacast://listen?ip=192.168.4.1"; } | tee -a "$LOG"
     # Debian starts hostapd with no config unless DAEMON_CONF is set.
     if grep -q '^#\?DAEMON_CONF=' /etc/default/hostapd 2>/dev/null; then
         sed -i 's|^#\?DAEMON_CONF=.*|DAEMON_CONF="/etc/hostapd/hostapd.conf"|' /etc/default/hostapd

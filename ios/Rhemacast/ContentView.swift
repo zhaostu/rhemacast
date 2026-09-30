@@ -6,6 +6,7 @@ struct ContentView: View {
     @AppStorage("serverIP") private var serverIP = "192.168.4.1"
     @StateObject private var client = WebRTCClient()
     @ObservedObject private var router = AudioRouter.shared
+    @EnvironmentObject private var links: DeepLinkRouter
     @State private var muted = false
     @State private var settingsOpen = false
 
@@ -110,6 +111,13 @@ struct ContentView: View {
             .padding()
             .navigationTitle("Rhemacast")
             .onAppear { router.refreshAvailable() }
+            .onChange(of: links.nonce) { _ in
+                // Deep link tunes + auto-plays.
+                if let ip = links.ip {
+                    serverIP = ip
+                    client.connect(hostIP: ip)
+                }
+            }
         }
     }
 }

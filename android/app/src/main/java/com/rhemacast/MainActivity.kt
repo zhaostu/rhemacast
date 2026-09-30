@@ -36,6 +36,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -50,6 +51,10 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
+    // Deep-link state: rhemacast://listen?ip=<host> tunes + auto-plays.
+    private val linkIp = mutableStateOf<String?>(null)
+    private val linkNonce = mutableStateOf(0)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= 33 &&
@@ -58,26 +63,56 @@ class MainActivity : ComponentActivity() {
         ) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
+        handleDeepLink(intent)
         setContent {
             MaterialTheme {
                 Surface(Modifier.fillMaxSize()) {
-                    ListenerScreen()
+                    ListenerScreen(deepLinkIp = linkIp.value, deepLinkNonce = linkNonce.value)
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleDeepLink(intent)
+    }
+
+    private fun handleDeepLink(intent: Intent?) {
+        val ip = intent?.data
+            ?.takeIf { it.scheme == "rhemacast" }
+            ?.getQueryParameter("ip")
+            ?.trim()
+            .orEmpty()
+        if (ip.isNotEmpty()) {
+            linkIp.value = ip
+            linkNonce.value++
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ListenerScreen() {
+fun ListenerScreen(deepLinkIp: String? = null, deepLinkNonce: Int = 0) {
     val context = LocalContext.current
     val audio = remember {
         context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     }
-    var ip by remember { mutableStateOf("192.168.4.1") }
+    var ip by remember { mutableStateOf(deepLinkIp ?: "192.168.4.1") }
     val status by PlaybackService.status.collectAsState()
     val stats by PlaybackService.stats.collectAsState()
+    // Deep link tunes + auto-plays (once per link); no-op if already on it.
+    var lastLink by remember { mutableStateOf(-1) }
+    if (deepLinkIp != null && deepLinkNonce != lastLink) {
+        lastLink = deepLinkNonce
+        ip = deepLinkIp
+    }
+    LaunchedEffect(deepLinkNonce) {
+        if (deepLinkIp != null && !status.startsWith("Playing from $deepLinkIp")) {
+            PlaybackService.start(context, deepLinkIp)
+        }
+    }
     // Voice-call stream matches MODE_IN_COMMUNICATION routing (headphones).
     val volStream = AudioManager.STREAM_VOICE_CALL
     val maxVol = remember { audio.getStreamMaxVolume(volStream) }

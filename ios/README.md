@@ -13,10 +13,10 @@ ios/Rhemacast/RhemacastApp.swift   # @main App entry
 ios/Rhemacast/ContentView.swift    # single screen: big Listen/Stop toggle, output picker, volume, status, Settings
 ios/Rhemacast/WebRTCClient.swift   # RTCPeerConnection (audio recvonly) + WHEP + stats + cleanup
 ios/Rhemacast/AudioRouter.swift    # output routing (Auto = Headphones, loudspeaker opt-in)
-ios/Info.plist                     # audio bg mode + local-network permission + ATS local exception
+ios/Info.plist                     # audio bg mode + local-network permission + ATS local exception + rhemacast:// URL scheme
 ```
 
-Project setup is checked in: `ios/Info.plist` holds the 3 custom keys
+Project setup is checked in: `ios/Info.plist` holds the custom keys
 (`UIBackgroundModes=array(audio)`, `NSLocalNetworkUsageDescription`, `NSAppTransportSecurity` dict),
 wired via `INFOPLIST_FILE = Info.plist` with `GENERATE_INFOPLIST_FILE = YES` (merge mode).
 WebRTC (`stasel/WebRTC` 153.0.0) is wired via SPM in `project.pbxproj`. No microphone key.
@@ -33,3 +33,4 @@ WebRTC (`stasel/WebRTC` 153.0.0) is wired via SPM in `project.pbxproj`. No micro
 
 - Audio session: `.playback` + `.voiceChat` mode, no recording; background audio enabled so listening continues with screen locked.
 - WHEP flow: offer (`OfferToReceiveAudio:true`) → `POST` SDP → answer → `setRemoteDescription`; `Location` header stored, `DELETE` sent on Disconnect.
+- Deep link: `rhemacast://listen?ip=<host>` (QR from `ap.sh`) tunes + auto-plays via `DeepLinkRouter`.
